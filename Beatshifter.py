@@ -10,7 +10,7 @@ class XMLEditor:
         self.XML_content = ""
         self.XML_path = ""
         self.XML_saved = False
-        self.Path_to_dev_XML = Path("C:/Users/Kasto/OneDrive/DJ-Main/Archive of great music/Scripts/Dev/2024-03-09.xml")
+        self.Path_to_dev_XML = Path("/home/ben/scripts/Beatshifter-RB-to-EDJ/Dev/2024-03-09.xml")
         self.window = tk.Tk()
         self.window.title('XML Editor')
         self.window.geometry('500x200')
@@ -63,7 +63,7 @@ class XMLEditor:
         self.xml_content_button.config(state=tk.DISABLED)
         self.xml_created_button.config(state=tk.DISABLED)
 
-    
+    ## LOGIC
     def open_file(self):
         file_path = self.Path_to_dev_XML
         self.XML_path = file_path
@@ -76,14 +76,21 @@ class XMLEditor:
         for dj_playlists in root.iter('DJ_PLAYLISTS'):
             for collection in dj_playlists.iter('COLLECTION'):
                 for track in collection.iter('TRACK'):
-                    tempo = track.find('TEMPO')
-                    if tempo is not None:
-                        inizio = float(tempo.get('Inizio'))
+                    # Print entire track content for debugging
+                    # print(ET.tostring(track, encoding='utf-8').decode())
 
-                        for position_mark in track.iter('POSITION_MARK'):
-                            start = float(position_mark.get('Start'))
-                            start = round(start, 3)
-                            position_mark.set('Start', str(start + inizio))
+                    # Get .mp3 file path
+                    file_path = Path(track.get('Location'))
+
+                    # For development purposes, replace C with /mnt/c
+                    file_path = file_path.as_posix().replace('C:', '/mnt/c')
+
+                    # Detect silence in .mp3 file
+                    silence_ms = self.detect_silence(file_path)
+
+                    # Print track title for debugging
+                    print(f"Track: {track.get('Name')}/nFound: {silence_ms} of silence")
+
 
         self.XML_content = ET.tostring(root, encoding='utf-8').decode()
         self.update_text_fields()
@@ -97,6 +104,26 @@ class XMLEditor:
         self.XML_saved = True
         self.update_text_fields()
 
+    def detect_silence(self, file_path):
+        # Load the MP3 file
+        audio = AudioSegment.from_file(file_path)
+
+        # Define the duration of a frame in milliseconds (for 44.1kHz sample rate)
+        frame_duration = 26.122448979591837  # Approx. 26.122 ms per frame for 44.1kHz sample rate
+
+        # Duration of silence frame to be checked (in milliseconds)
+        silence_frame_duration = frame_duration * 1152  # 1152 frames per mp3 frame
+
+        # Get the first segment of the audio with duration equal to the expected silence frame duration
+        first_segment = audio[:silence_frame_duration]
+
+        # Check if the first segment is silent
+        is_silent = first_segment.dBFS < -60  # Adjust threshold as per your requirement
+
+        return is_silent
+        
+        
+
 
     def run(self):
         self.window.mainloop()
@@ -107,6 +134,15 @@ if __name__ == "__main__":
 
 
 
+
+#LEGACY
+                    # if tempo is not None:
+                    #     inizio = float(tempo.get('Inizio'))
+
+                    #     for position_mark in track.iter('POSITION_MARK'):
+                    #         start = float(position_mark.get('Start'))
+                    #         start = round(start, 3)
+                    #         position_mark.set('Start', str(start + inizio))
 
 """
 Write a function which iterates over every TRACK an XML file and shifts all POSITION_MARK Start values by the Inizio (shift value)
